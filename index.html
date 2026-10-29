@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imperfectum-trainer</title>
+<meta name="description" content="Oefen het imperfectum van 95 onregelmatige werkwoorden. Werkt op je telefoon, ook zonder internet.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#F3F5F9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1320" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Imperfectum">
+<link rel="preload" href="atkinson-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="literata-600.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 400; font-display: swap; src: url(atkinson-400.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: italic; font-weight: 400; font-display: swap; src: url(atkinson-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 700; font-display: swap; src: url(atkinson-700.woff2) format("woff2"); }
+@font-face { font-family: "Literata"; font-style: normal; font-weight: 500; font-display: swap; src: url(literata-500.woff2) format("woff2"); }
+@font-face { font-family: "Literata"; font-style: normal; font-weight: 600; font-display: swap; src: url(literata-600.woff2) format("woff2"); }
+/* Layout: one narrow column; the card holds one verb at a time, round settings fold open above it */
+:root {
+  --bg: #F3F5F9;
+  --surface: #FFFFFF;
+  --ink: #141B2B;
+  --muted: #5A6377;
+  --line: #DBE1EB;
+  --accent: #1D4C9A;          /* Delfts blauw */
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E5ECF8;
+  --good: #22764A;
+  --good-soft: #E2F1E8;
+  --bad: #B03A2B;
+  --bad-soft: #F8E5E1;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-ui: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1320; --surface: #161D2D; --ink: #E7ECF5; --muted: #9BA5B9; --line: #2A3349;
+    --accent: #8FB2F3; --accent-ink: #0E1320; --accent-soft: #1D2943;
+    --good: #6CCB94; --good-soft: #15302A; --bad: #F18B79; --bad-soft: #3A1F1D;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1320; --surface: #161D2D; --ink: #E7ECF5; --muted: #9BA5B9; --line: #2A3349;
+  --accent: #8FB2F3; --accent-ink: #0E1320; --accent-soft: #1D2943;
+  --good: #6CCB94; --good-soft: #15302A; --bad: #F18B79; --bad-soft: #3A1F1D;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.45; }
+.app { max-width: 34rem; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 14px; }
+
+/* Header */
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.top h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+.top .sub { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+.stats { display: flex; gap: 10px; font-variant-numeric: tabular-nums; font-size: 0.95rem; font-weight: 700; }
+.stats .ok { color: var(--good); }
+.stats .ko { color: var(--bad); }
+.bar { height: 5px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+
+/* Settings */
+.settings { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.settings summary { cursor: pointer; padding: 12px 16px; font-weight: 700; color: var(--accent); list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
+.settings summary::-webkit-details-marker { display: none; }
+.settings summary::after { content: "+"; font-size: 1.3rem; line-height: 1; }
+.settings[open] summary::after { content: "–"; }
+.set-body { padding: 0 16px 16px; display: grid; gap: 16px; }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+legend { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; padding: 0; margin-bottom: 8px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { flex: 1; min-height: 44px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 0.92rem; cursor: pointer; padding: 6px 4px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-size: 0.88rem; border-radius: 99px; padding: 8px 12px; min-height: 40px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+.chip small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip-label { flex-basis: 100%; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; margin-top: 6px; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.chip[aria-pressed="true"] small { color: var(--accent); }
+.chip.mist[aria-pressed="true"] { background: var(--bad-soft); border-color: var(--bad); }
+.chip.mist[aria-pressed="true"] small { color: var(--bad); }
+.row-links { display: flex; gap: 14px; }
+.linkbtn { background: none; border: 0; padding: 4px 0; color: var(--accent); font: inherit; font-size: 0.88rem; font-weight: 700; cursor: pointer; }
+.warn { margin: 0; color: var(--bad); font-size: 0.9rem; }
+.note { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.hint { display: grid; gap: 4px; }
+.hint p { margin: 0; }
+.hint b { font-family: var(--font-display); font-weight: 600; }
+.hint .small { color: var(--muted); font-size: 0.86rem; }
+.why { margin: 0; font-size: 0.9rem; color: var(--ink); background: var(--bad-soft); border-radius: 8px; padding: 6px 10px; }
+.tips-body { padding: 0 16px 16px; display: grid; gap: 14px; }
+.tips-body p { margin: 0; }
+.tip-item { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 4px; }
+.tip-item h4 { margin: 0; font-size: 1rem; display: flex; justify-content: space-between; gap: 8px; }
+.tip-item h4 span { color: var(--bad); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tip-item .ex { font-family: var(--font-display); }
+.tip-item .rule { color: var(--muted); font-size: 0.92rem; }
+.tips-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 18px 18px; display: grid; gap: 14px; }
+.q-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; margin: 0; }
+.hint { margin: 0; background: var(--accent-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; }
+.verb-wrap { display: grid; gap: 2px; }
+.verb { font-family: var(--font-display); font-weight: 600; font-size: clamp(2.1rem, 9vw, 2.8rem); line-height: 1.1; margin: 0; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+.en { margin: 0; color: var(--muted); font-style: italic; }
+
+.fields { display: grid; gap: 12px; margin: 0; }
+.field { display: grid; gap: 6px; }
+.field .lab { font-size: 0.9rem; font-weight: 700; }
+.field .lab em { font-style: normal; font-weight: 400; color: var(--muted); }
+.field input { width: 100%; font: inherit; font-size: 1.15rem; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); min-height: 50px; }
+.field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field input.good { border-color: var(--good); background: var(--good-soft); }
+.field input.bad { border-color: var(--bad); background: var(--bad-soft); text-decoration: line-through; text-decoration-color: var(--bad); }
+.field input.na { color: var(--muted); }
+.fix { margin: 0; font-size: 0.95rem; color: var(--bad); font-weight: 700; }
+.fix span { color: var(--muted); font-weight: 400; }
+
+.feedback { border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; }
+.feedback.good { background: var(--good-soft); }
+.feedback.bad { background: var(--bad-soft); }
+.feedback .verdict { margin: 0; font-weight: 700; }
+.feedback.good .verdict { color: var(--good); }
+.feedback.bad .verdict { color: var(--bad); }
+.feedback .forms { margin: 0; font-family: var(--font-display); font-size: 1.05rem; }
+.feedback .grp { margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+.reveal { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.reveal div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.reveal dt { color: var(--muted); font-size: 0.9rem; }
+.reveal dd { margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { flex: 1 1 8rem; min-height: 50px; border-radius: 12px; font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer; border: 1.5px solid var(--line); background: transparent; color: var(--ink); padding: 10px 14px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.good { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+.btn.bad { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.btn:active { transform: translateY(1px); }
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* End */
+.score { font-family: var(--font-display); font-weight: 600; font-size: 3rem; margin: 0; line-height: 1; font-variant-numeric: tabular-nums; }
+.score span { font-size: 1.4rem; color: var(--muted); font-weight: 500; }
+.end p { margin: 0; }
+.end h3 { margin: 6px 0 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.wrong-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.wrong-list li { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
+.wrong-list b { font-family: var(--font-display); font-size: 1.1rem; }
+.wrong-list span { color: var(--muted); font-size: 0.95rem; }
+
+@media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+
+/* Standalone page */
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+.tips-body > .tip-item:first-child { border-top: 0; padding-top: 0; }
+.qr { background: #FFFFFF; border-radius: 12px; padding: 10px; width: min(220px, 72%); margin: 4px 0; }
+.qr svg { display: block; width: 100%; height: auto; }
+.link { margin: 0; font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+.tip-item .btn { justify-self: start; flex: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Imperfectum-trainer</h1>
+      <p class="sub" id="roundInfo">95 onregelmatige werkwoorden</p>
+    </div>
+    <div class="stats" aria-live="polite">
+      <span id="pos">0 / 0</span>
+      <span class="ok" id="nOk">✓ 0</span>
+      <span class="ko" id="nKo">✗ 0</span>
+    </div>
+  </header>
+  <div class="bar" aria-hidden="true"><span id="barFill"></span></div>
+
+  <details class="settings" id="settings">
+    <summary>Ronde aanpassen</summary>
+    <div class="set-body">
+      <fieldset>
+        <legend>Welke vormen?</legend>
+        <div class="seg" id="segForms">
+          <button type="button" data-v="sg">Enkelvoud</button>
+          <button type="button" data-v="pl">+ meervoud</button>
+          <button type="button" data-v="perf">+ perfectum</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Hoe oefenen?</legend>
+        <div class="seg" id="segWay">
+          <button type="button" data-v="type">Typen</button>
+          <button type="button" data-v="card">Kaartjes</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Groepen</legend>
+        <div class="row-links">
+          <button type="button" class="linkbtn" id="allBtn">Alles</button>
+          <button type="button" class="linkbtn" id="noneBtn">Geen</button>
+        </div>
+        <div class="chips" id="chips"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Aantal werkwoorden</legend>
+        <div class="seg" id="segCount">
+          <button type="button" data-v="10">10</button>
+          <button type="button" data-v="20">20</button>
+          <button type="button" data-v="40">40</button>
+          <button type="button" data-v="0">Alle</button>
+        </div>
+      </fieldset>
+      <p class="warn" id="setWarn" hidden>Kies minstens één groep.</p>
+      <button type="button" class="btn primary" id="startBtn">Start nieuwe ronde</button>
+    </div>
+  </details>
+
+  <details class="settings" id="tipsBox">
+    <summary>My tips (based on my mistakes)</summary>
+    <div class="tips-body" id="tipsBody"></div>
+  </details>
+
+  <details class="settings" id="shareBox">
+    <summary>Install &amp; share</summary>
+    <div class="tips-body">
+      <div class="tip-item">
+        <h4>Put it on your phone</h4>
+        <p class="rule" id="installHow"></p>
+        <button type="button" class="btn primary" id="installBtn" hidden>Install app</button>
+      </div>
+      <div class="tip-item">
+        <h4>Share with your class</h4>
+        <p class="rule">Classmates can scan this code with their phone camera, or you can send them the link.</p>
+        <div class="qr" id="qr" role="img" aria-label="QR code with the link to this trainer"></div>
+        <p class="link" id="linkText"></p>
+        <button type="button" class="btn" id="shareBtn">Share link</button>
+      </div>
+      <div class="tip-item">
+        <h4>Your progress</h4>
+        <p class="rule">Your mistakes and tips are saved only on this phone. Nobody else can see them, and you don't need an account.</p>
+        <button type="button" class="btn" id="resetBtn">Delete my progress</button>
+      </div>
+    </div>
+  </details>
+
+  <main id="stage"></main>
+</div>
+
+<script src="qr.js"></script>
+<script>
+const RAW = [{"g": "ij", "inf": "begrijpen", "imp": "begreep / begrepen", "perf": "(hebben) begrepen", "en": "understand"}, {"g": "ij", "inf": "bijten", "imp": "beet / beten", "perf": "(hebben) gebeten", "en": "bite"}, {"g": "ij", "inf": "blijven", "imp": "bleef / bleven", "perf": "(zijn) gebleven", "en": "stay"}, {"g": "ij", "inf": "kijken", "imp": "keek / keken", "perf": "(hebben) gekeken", "en": "look, watch"}, {"g": "ij", "inf": "krijgen", "imp": "kreeg / kregen", "perf": "(hebben) gekregen", "en": "get, receive"}, {"g": "ij", "inf": "rijden", "imp": "reed / reden", "perf": "(hebben/zijn) gereden", "en": "drive, ride"}, {"g": "ij", "inf": "schijnen", "imp": "de zon scheen", "perf": "de zon heeft geschenen", "en": "shine"}, {"g": "ij", "inf": "schrijven", "imp": "schreef / schreven", "perf": "(hebben) geschreven", "en": "write"}, {"g": "ij", "inf": "snijden", "imp": "sneed / sneden", "perf": "(hebben) gesneden", "en": "cut"}, {"g": "ij", "inf": "strijken", "imp": "streek / streken", "perf": "(hebben) gestreken", "en": "iron"}, {"g": "ij", "inf": "wijzen", "imp": "wees / wezen", "perf": "(hebben) gewezen", "en": "point"}, {"g": "ieui", "inf": "kiezen", "imp": "koos / kozen", "perf": "(hebben) gekozen", "en": "choose"}, {"g": "ieui", "inf": "verliezen", "imp": "verloor / verloren", "perf": "(hebben) verloren", "en": "lose"}, {"g": "ieui", "inf": "vliegen", "imp": "vloog / vlogen", "perf": "(hebben/zijn) gevlogen", "en": "fly"}, {"g": "ieui", "inf": "vriezen", "imp": "het vroor", "perf": "het heeft gevroren", "en": "freeze"}, {"g": "ieui", "inf": "verbieden", "imp": "verbood / verboden", "perf": "(hebben) verboden", "en": "forbid"}, {"g": "ieui", "inf": "gieten", "imp": "goot / goten", "perf": "(hebben) gegoten", "en": "pour"}, {"g": "ieui", "inf": "sluiten", "imp": "sloot / sloten", "perf": "(hebben) gesloten", "en": "close"}, {"g": "diff", "inf": "wegen", "imp": "woog / wogen", "perf": "(hebben) gewogen", "en": "weigh"}, {"g": "diff", "inf": "bewegen", "imp": "bewoog / bewogen", "perf": "(hebben) bewogen", "en": "move"}, {"g": "in", "inf": "beginnen", "imp": "begon / begonnen", "perf": "(zijn) begonnen", "en": "begin"}, {"g": "in", "inf": "drinken", "imp": "dronk / dronken", "perf": "(hebben) gedronken", "en": "drink"}, {"g": "in", "inf": "vinden", "imp": "vond / vonden", "perf": "(hebben) gevonden", "en": "find, think"}, {"g": "in", "inf": "springen", "imp": "sprong / sprongen", "perf": "(hebben) gesprongen", "en": "jump"}, {"g": "in", "inf": "winnen", "imp": "won / wonnen", "perf": "(hebben) gewonnen", "en": "win"}, {"g": "in", "inf": "zingen", "imp": "zong / zongen", "perf": "(hebben) gezongen", "en": "sing"}, {"g": "edbl", "inf": "zwemmen", "imp": "zwom / zwommen", "perf": "(hebben/zijn) gezwommen", "en": "swim"}, {"g": "edbl", "inf": "treffen", "imp": "trof / troffen", "perf": "(hebben) getroffen", "en": "meet, hit"}, {"g": "edbl", "inf": "trekken", "imp": "trok / trokken", "perf": "(hebben) getrokken", "en": "pull"}, {"g": "ekm", "inf": "breken", "imp": "brak / braken", "perf": "(hebben) gebroken", "en": "break"}, {"g": "ekm", "inf": "nemen", "imp": "nam / namen", "perf": "(hebben) genomen", "en": "take"}, {"g": "ekm", "inf": "spreken", "imp": "sprak / spraken", "perf": "(hebben) gesproken", "en": "speak"}, {"g": "ekm", "inf": "steken", "imp": "stak / staken", "perf": "(hebben) gestoken", "en": "sting, stab"}, {"g": "diff", "inf": "komen", "imp": "kwam / kwamen", "perf": "(zijn) gekomen", "en": "come"}, {"g": "etvz", "inf": "eten", "imp": "at / aten", "perf": "(hebben) gegeten", "en": "eat"}, {"g": "etvz", "inf": "geven", "imp": "gaf / gaven", "perf": "(hebben) gegeven", "en": "give"}, {"g": "etvz", "inf": "genezen", "imp": "genas / genazen", "perf": "(hebben) genezen", "en": "heal, recover"}, {"g": "etvz", "inf": "lezen", "imp": "las / lazen", "perf": "(hebben) gelezen", "en": "read"}, {"g": "etvz", "inf": "vergeten", "imp": "vergat / vergaten", "perf": "(hebben/zijn) vergeten", "en": "forget"}, {"g": "igg", "inf": "liggen", "imp": "lag / lagen", "perf": "(hebben) gelegen", "en": "lie (be lying)"}, {"g": "igg", "inf": "zitten", "imp": "zat / zaten", "perf": "(hebben) gezeten", "en": "sit"}, {"g": "aoth", "inf": "slapen", "imp": "sliep / sliepen", "perf": "(hebben) geslapen", "en": "sleep"}, {"g": "aoth", "inf": "blazen", "imp": "blies / bliezen", "perf": "(hebben) geblazen", "en": "blow"}, {"g": "aoth", "inf": "laten", "imp": "liet / lieten", "perf": "(hebben) gelaten", "en": "let, leave"}, {"g": "aoth", "inf": "vallen", "imp": "viel / vielen", "perf": "(zijn) gevallen", "en": "fall"}, {"g": "aoth", "inf": "hangen", "imp": "hing / hingen", "perf": "(hebben) gehangen", "en": "hang"}, {"g": "aoth", "inf": "vervangen", "imp": "verving / vervingen", "perf": "(hebben) vervangen", "en": "replace"}, {"g": "o", "inf": "lopen", "imp": "liep / liepen", "perf": "(hebben/zijn) gelopen", "en": "walk, run"}, {"g": "o", "inf": "roepen", "imp": "riep / riepen", "perf": "(hebben) geroepen", "en": "call, shout"}, {"g": "o", "inf": "houden (van)", "imp": "hield / hielden", "perf": "(hebben) gehouden", "en": "hold / love"}, {"g": "elr", "inf": "helpen", "imp": "hielp / hielpen", "perf": "(hebben) geholpen", "en": "help"}, {"g": "elr", "inf": "sterven", "imp": "stierf / stierven", "perf": "(zijn) gestorven", "en": "die"}, {"g": "agr", "inf": "dragen", "imp": "droeg / droegen", "perf": "(hebben) gedragen", "en": "carry, wear"}, {"g": "agr", "inf": "varen", "imp": "voer / voeren", "perf": "(hebben/zijn) gevaren", "en": "sail"}, {"g": "agr", "inf": "vragen", "imp": "vroeg / vroegen", "perf": "(hebben) gevraagd", "en": "ask"}, {"g": "cht", "inf": "brengen", "imp": "bracht / brachten", "perf": "(hebben) gebracht", "en": "bring"}, {"g": "cht", "inf": "denken", "imp": "dacht / dachten", "perf": "(hebben) gedacht", "en": "think"}, {"g": "cht", "inf": "kopen", "imp": "kocht / kochten", "perf": "(hebben) gekocht", "en": "buy"}, {"g": "cht", "inf": "zoeken", "imp": "zocht / zochten", "perf": "(hebben) gezocht", "en": "search, look for"}, {"g": "irr", "inf": "zijn", "imp": "was / waren", "perf": "(zijn) geweest", "en": "be"}, {"g": "irr", "inf": "hebben", "imp": "had / hadden", "perf": "(hebben) gehad", "en": "have"}, {"g": "irr", "inf": "gaan", "imp": "ging / gingen", "perf": "(zijn) gegaan", "en": "go"}, {"g": "irr", "inf": "staan", "imp": "stond / stonden", "perf": "(hebben) gestaan", "en": "stand"}, {"g": "irr", "inf": "doen", "imp": "deed / deden", "perf": "(hebben) gedaan", "en": "do"}, {"g": "irr", "inf": "zien", "imp": "zag / zagen", "perf": "(hebben) gezien", "en": "see"}, {"g": "irr", "inf": "zeggen", "imp": "zei / zeiden", "perf": "(hebben) gezegd", "en": "say"}, {"g": "irr", "inf": "weten", "imp": "wist / wisten", "perf": "(hebben) geweten", "en": "know"}, {"g": "irr", "inf": "worden", "imp": "werd / werden", "perf": "(zijn) geworden", "en": "become"}, {"g": "irr", "inf": "kunnen", "imp": "kon / konden", "perf": "(hebben) gekund", "en": "can, be able to"}, {"g": "irr", "inf": "mogen", "imp": "mocht / mochten", "perf": "(hebben) gemogen", "en": "be allowed to"}, {"g": "irr", "inf": "moeten", "imp": "moest / moesten", "perf": "(hebben) gemoeten", "en": "must, have to"}, {"g": "irr", "inf": "willen", "imp": "wou, wilde / wilden", "perf": "(hebben) gewild", "en": "want"}, {"g": "irr", "inf": "zullen", "imp": "zou / zouden", "perf": "—", "en": "will, shall"}, {"g": "reg", "inf": "bakken", "imp": "bakte / bakten", "perf": "(hebben) gebakken", "en": "bake"}, {"g": "reg", "inf": "wassen", "imp": "waste / wasten", "perf": "(hebben) gewassen", "en": "wash"}, {"g": "reg", "inf": "scheiden", "imp": "scheidde / scheidden", "perf": "(zijn) gescheiden", "en": "separate, divorce"}, {"g": "p", "inf": "aandoen", "imp": "deed aan / deden aan", "perf": "(hebben) aangedaan", "en": "put on, switch on", "root": "doen"}, {"g": "p", "inf": "uitdoen", "imp": "deed uit / deden uit", "perf": "(hebben) uitgedaan", "en": "take off (clothes)", "root": "doen"}, {"g": "p", "inf": "aankomen", "imp": "kwam aan / kwamen aan", "perf": "(zijn) aangekomen", "en": "arrive", "root": "komen"}, {"g": "p", "inf": "voorkomen", "imp": "voorkwam / voorkwamen", "perf": "(hebben) voorkomen", "en": "prevent", "root": "komen"}, {"g": "p", "inf": "meenemen", "imp": "nam mee / namen mee", "perf": "(hebben) meegenomen", "en": "take along", "root": "nemen"}, {"g": "p", "inf": "innemen", "imp": "nam in / namen in", "perf": "(hebben) ingenomen", "en": "take (medicine)", "root": "nemen"}, {"g": "p", "inf": "nakijken", "imp": "keek na / keken na", "perf": "(hebben) nagekeken", "en": "check", "root": "kijken"}, {"g": "p", "inf": "opstaan", "imp": "stond op / stonden op", "perf": "(zijn) opgestaan", "en": "get up", "root": "staan"}, {"g": "p", "inf": "verstaan", "imp": "verstond / verstonden", "perf": "(hebben) verstaan", "en": "understand (hear)", "root": "staan"}, {"g": "p", "inf": "uitgaan", "imp": "ging uit / gingen uit", "perf": "(zijn) uitgegaan", "en": "go out", "root": "gaan"}, {"g": "p", "inf": "bezoeken", "imp": "bezocht / bezochten", "perf": "(hebben) bezocht", "en": "visit", "root": "zoeken"}, {"g": "p", "inf": "onderzoeken", "imp": "onderzocht / onderzochten", "perf": "(hebben) onderzocht", "en": "examine, research", "root": "zoeken"}, {"g": "p", "inf": "verkopen", "imp": "verkocht / verkochten", "perf": "(hebben) verkocht", "en": "sell", "root": "kopen"}, {"g": "p", "inf": "vertrekken", "imp": "vertrok / vertrokken", "perf": "(zijn) vertrokken", "en": "leave, depart", "root": "trekken"}, {"g": "p", "inf": "uittrekken", "imp": "trok uit / trokken uit", "perf": "(hebben) uitgetrokken", "en": "take off (clothes)", "root": "trekken"}, {"g": "p", "inf": "oversteken", "imp": "stak over / staken over", "perf": "(zijn) overgestoken", "en": "cross (the street)", "root": "steken"}, {"g": "p", "inf": "ontbijten", "imp": "ontbeet / ontbeten", "perf": "(hebben) ontbeten", "en": "have breakfast", "root": "bijten"}, {"g": "p", "inf": "afwassen", "imp": "waste af / wasten af", "perf": "(hebben) afgewassen", "en": "do the dishes", "root": "wassen"}, {"g": "p", "inf": "behangen", "imp": "behing / behingen", "perf": "(hebben) behangen", "en": "wallpaper", "root": "hangen"}];
+
+const GROUPS = {
+  ij:   { set: "row",  chip: "ij + consonant",       cond: "ij + consonant",       change: "ij → ee → e" },
+  ieui: { set: "row",  chip: "ie/ui + consonant",    cond: "ie or ui + consonant", change: "ie/ui → oo → o" },
+  in:   { set: "row",  chip: "i + nk/nd/ng/nn",      cond: "i + nk, nd, ng, nn",   change: "i → o → o" },
+  igg:  { set: "row",  chip: "i + gg/tt",            cond: "i + gg or tt",         change: "i → a → e" },
+  edbl: { set: "row",  chip: "e + mm/ff/kk",         cond: "e + mm, ff, kk",       change: "e → o → o" },
+  ekm:  { set: "row",  chip: "e + k/m",              cond: "e + k or m",           change: "e → a → o" },
+  etvz: { set: "row",  chip: "e + t/v/z",            cond: "e + t, v or z",        change: "e → a → e" },
+  elr:  { set: "row",  chip: "e + l/r + consonant",  cond: "e + l/r + consonant",  change: "e → ie → o" },
+  agr:  { set: "row",  chip: "a + g/r",              cond: "a + g or r",           change: "a → oe → a" },
+  aoth: { set: "row",  chip: "a + other consonants", cond: "a + other consonants", change: "a → ie/i → a" },
+  o:    { set: "row",  chip: "o/oe/ou",              cond: "o, oe or ou",          change: "o/oe/ou → ie → o/oe/ou" },
+  diff: { set: "memo", chip: "Follow a different row" },
+  cht:  { set: "memo", chip: "The -cht family" },
+  irr:  { set: "memo", chip: "Fully irregular" },
+  reg:  { set: "memo", chip: "Regular imperfectum" },
+  p:    { set: "pref", chip: "Verbs with a prefix" },
+};
+const GROUP_KEYS = Object.keys(GROUPS);
+const AUX_WORD = { "hebben": "heeft", "zijn": "is", "hebben/zijn": "heeft/is" };
+
+function parse(v) {
+  const halves = v.imp.split(" / ");
+  const sgShow = halves[0].trim();
+  const plShow = halves.length > 1 ? halves[1].trim() : null;
+  const sgAlts = sgShow.replace(/^(de zon|het) /, "").split(",").map(s => s.trim());
+  let aux = null, part = null, perfShow = "—";
+  const m = v.perf.match(/^\((hebben|zijn|hebben\/zijn)\) (.+)$/);
+  if (m) { aux = m[1]; part = m[2]; perfShow = AUX_WORD[aux] + " " + part; }
+  else if (v.perf !== "—") { const m2 = v.perf.match(/heeft (\S+)$/); aux = "hebben"; part = m2[1]; perfShow = v.perf; }
+  return { ...v, sgShow, plShow, sgAlts, pl: plShow, aux, part, perfShow };
+}
+const VERBS = RAW.map(parse);
+
+/* storage (per device, optional) */
+const KEY_S = "imperfectum-trainer-settings", KEY_M = "imperfectum-trainer-fouten";
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+let settings = Object.assign({ forms: "sg", way: "type", groups: GROUP_KEYS.slice(), mist: false, count: 20 }, store.get(KEY_S, {}));
+if (!Array.isArray(settings.groups) || settings.groups.some(g => !GROUPS[g])) settings.groups = GROUP_KEYS.slice();
+let mistakes = new Set(store.get(KEY_M, []));
+let round = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const norm = s => s.toLowerCase().replace(/[.!?;:]+$/, "").replace(/\s+/g, " ").trim();
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fullForms = v => [v.inf, v.sgShow, v.plShow || "—", v.perfShow].join(" – ");
+
+/* ---------- settings UI ---------- */
+function syncSeg(id, val) {
+  $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(val))));
+}
+function renderChips() {
+  const counts = {};
+  VERBS.forEach(v => counts[v.g] = (counts[v.g] || 0) + 1);
+  const chipBtn = k => `<button type="button" class="chip" data-g="${k}" aria-pressed="${settings.groups.includes(k)}">${esc(GROUPS[k].chip)} <small>${counts[k]}</small></button>`;
+  let html = [["row", "Table rows"], ["memo", "Memorize list"], ["pref", "Prefix verbs"]]
+    .map(([set, label]) => `<span class="chip-label">${label}</span>` + GROUP_KEYS.filter(k => GROUPS[k].set === set).map(chipBtn).join("")).join("");
+  if (mistakes.size) html += `<button type="button" class="chip mist" data-g="mist" aria-pressed="${settings.mist}">Mijn fouten <small>${mistakes.size}</small></button>`;
+  $("chips").innerHTML = html;
+}
+function syncSettings() {
+  syncSeg("segForms", settings.forms); syncSeg("segWay", settings.way); syncSeg("segCount", settings.count);
+  renderChips(); $("setWarn").hidden = true;
+}
+function saveSettings() { store.set(KEY_S, settings); }
+
+$("segForms").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; settings.forms = b.dataset.v; saveSettings(); syncSettings(); });
+$("segWay").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; settings.way = b.dataset.v; saveSettings(); syncSettings(); });
+$("segCount").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; settings.count = Number(b.dataset.v); saveSettings(); syncSettings(); });
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  const g = b.dataset.g;
+  if (g === "mist") settings.mist = !settings.mist;
+  else settings.groups = settings.groups.includes(g) ? settings.groups.filter(x => x !== g) : [...settings.groups, g];
+  saveSettings(); syncSettings();
+});
+$("allBtn").addEventListener("click", () => { settings.groups = GROUP_KEYS.slice(); saveSettings(); syncSettings(); });
+$("noneBtn").addEventListener("click", () => { settings.groups = []; settings.mist = false; saveSettings(); syncSettings(); });
+$("startBtn").addEventListener("click", () => {
+  if (!buildPool().length) { $("setWarn").hidden = false; return; }
+  $("settings").open = false; startRound(); window.scrollTo({ top: 0 });
+});
+
+function buildPool() {
+  const gs = new Set(settings.groups);
+  const pool = VERBS.filter(v => gs.has(v.g));
+  if (settings.mist) VERBS.forEach(v => { if (mistakes.has(v.inf) && !pool.includes(v)) pool.push(v); });
+  return pool;
+}
+
+/* ---------- round ---------- */
+function startRound(deck) {
+  if (!deck) {
+    const pool = shuffle(buildPool().slice());
+    deck = settings.count ? pool.slice(0, settings.count) : pool;
+  } else deck = shuffle(deck.slice());
+  round = { deck, i: 0, ok: 0, ko: 0, wrong: [], checked: false };
+  const formsLabel = { sg: "Enkelvoud", pl: "Enkelvoud + meervoud", perf: "Alle vormen" }[settings.forms];
+  const wayLabel = settings.way === "type" ? "typen" : "kaartjes";
+  $("roundInfo").textContent = `${formsLabel} · ${wayLabel} · ${deck.length} werkwoorden`;
+  renderQuestion(false);
+}
+function updateStats() {
+  const n = round.deck.length, done = round.ok + round.ko;
+  $("pos").textContent = `${Math.min(round.i + 1, n)} / ${n}`;
+  $("nOk").textContent = `✓ ${round.ok}`;
+  $("nKo").textContent = `✗ ${round.ko}`;
+  $("barFill").style.width = (n ? done / n * 100 : 0) + "%";
+}
+function activeFields(v) {
+  const f = [{ key: "sg", lab: "Enkelvoud", sub: "ik, hij, zij" }];
+  if (settings.forms !== "sg") f.push({ key: "pl", lab: "Meervoud", sub: "wij, jullie, zij", na: !v.pl });
+  if (settings.forms === "perf") f.push({ key: "perf", lab: "Perfectum", sub: "bv. gekeken of heeft gekeken", na: !v.part });
+  return f;
+}
+function questionHead(v) {
+  return `
+    <div class="q-head"><p class="eyebrow">Wat is het imperfectum?</p><button type="button" class="linkbtn" id="hintBtn">Hint</button></div>
+    <div class="hint" id="hint" hidden>${hintHTML(v)}</div>
+    <div class="verb-wrap"><h2 class="verb">${esc(v.inf)}</h2><p class="en">${esc(v.en)}</p></div>`;
+}
+
+function renderQuestion(focus) {
+  updateStats();
+  const v = round.deck[round.i];
+  round.checked = false;
+  const stage = $("stage");
+  if (settings.way === "card") {
+    const rows = activeFields(v).map(f => {
+      const val = f.key === "sg" ? v.sgShow : f.key === "pl" ? (v.plShow || "—") : v.perfShow;
+      return `<div><dt>${f.lab}</dt><dd>${esc(val)}</dd></div>`;
+    }).join("");
+    stage.innerHTML = `<section class="card">${questionHead(v)}
+      <dl class="reveal" id="reveal" hidden>${rows}</dl>
+      <div class="actions" id="acts"><button type="button" class="btn primary" id="showBtn">Toon antwoord</button></div></section>`;
+    $("showBtn").addEventListener("click", () => {
+      $("reveal").hidden = false; $("hint").hidden = false;
+      $("acts").innerHTML = `<button type="button" class="btn bad" id="noBtn">Fout</button><button type="button" class="btn good" id="yesBtn">Goed</button>`;
+      $("yesBtn").addEventListener("click", () => { record(v, true, []); next(); });
+      $("noBtn").addEventListener("click", () => { record(v, false, [{ f: "kaart" }]); next(); });
+      $("yesBtn").focus();
+    });
+    if (focus) $("showBtn").focus();
+  } else {
+    const fields = activeFields(v).map(f => `
+      <div class="field">
+        <label class="lab" for="f-${f.key}">${f.lab} <em>${f.sub}</em></label>
+        <input id="f-${f.key}" data-k="${f.key}" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next"
+          ${f.na ? 'class="na" value="—" readonly tabindex="-1"' : ""}>
+        <p class="fix" id="fix-${f.key}" hidden></p>
+      </div>`).join("");
+    stage.innerHTML = `<section class="card">${questionHead(v)}
+      <form class="fields" id="qform" novalidate>${fields}
+        <div class="feedback" id="fb" hidden></div>
+        <div class="actions" id="acts">
+          <button type="submit" class="btn primary" id="mainBtn">Controleer</button>
+          <button type="button" class="btn" id="skipBtn">Weet ik niet</button>
+        </div>
+      </form></section>`;
+    const inputs = [...stage.querySelectorAll("input:not([readonly])")];
+    if (inputs.length) inputs[inputs.length - 1].setAttribute("enterkeyhint", "done");
+    inputs.forEach((inp, idx) => inp.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || round.checked) return;
+      const nextInp = inputs[idx + 1];
+      if (nextInp && !nextInp.value.trim()) { e.preventDefault(); nextInp.focus(); }
+    }));
+    $("qform").addEventListener("submit", e => { e.preventDefault(); round.checked ? next() : check(v, false); });
+    $("skipBtn").addEventListener("click", () => check(v, true));
+    if (focus && inputs[0]) inputs[0].focus();
+  }
+  $("hintBtn").addEventListener("click", () => { $("hint").hidden = !$("hint").hidden; });
+}
+
+function judge(v, key, raw) {
+  if (key === "sg") {
+    const a = norm(raw).replace(/^(ik|hij|zij|ze|het|de zon) /, "");
+    const parts = a.split(/\s*(?:\/|,|\bof\b)\s*/).map(s => s.trim()).filter(Boolean);
+    return { ok: parts.length > 0 && parts.every(p => v.sgAlts.includes(p)), show: v.sgShow };
+  }
+  if (key === "pl") {
+    if (!v.pl) return { ok: true, na: true };
+    const a = norm(raw).replace(/^(wij|we|jullie|zij|ze) /, "");
+    return { ok: a === v.pl, show: v.plShow };
+  }
+  if (!v.part) return { ok: true, na: true };
+  let a = norm(raw).replace(/^(de zon|het|ik|hij|zij|ze|wij|we|jullie) /, "");
+  let aux = null;
+  const m = a.match(/^(heeft|hebben|heb|hebt|is|zijn|ben|bent)\s+(.+)$/);
+  if (m) { aux = /^(heeft|hebben|heb|hebt)$/.test(m[1]) ? "hebben" : "zijn"; a = m[2]; }
+  const partOk = a === v.part;
+  const auxOk = !aux || v.aux.split("/").includes(aux);
+  return { ok: partOk && auxOk, show: v.perfShow, note: partOk && !auxOk ? "met " + v.aux : "" };
+}
+
+function check(v, gaveUp) {
+  if (round.checked) return;
+  round.checked = true;
+  let allOk = true;
+  const wrongs = [];
+  activeFields(v).forEach(f => {
+    const inp = $("f-" + f.key);
+    const r = judge(v, f.key, gaveUp ? "" : inp.value);
+    if (r.na) return;
+    inp.readOnly = true;
+    inp.classList.add(r.ok ? "good" : "bad");
+    if (!r.ok) {
+      allOk = false;
+      const typed = gaveUp ? "" : norm(inp.value);
+      wrongs.push({ f: f.key, typed, skipped: gaveUp });
+      const fx = $("fix-" + f.key);
+      fx.innerHTML = "→ " + esc(r.show) + (r.note ? ` <span>(${esc(r.note)})</span>` : "");
+      fx.hidden = false;
+      const d = gaveUp ? null : diagnose(v, f.key, typed);
+      if (d && d.say) fx.insertAdjacentHTML("afterend", `<p class="why">${esc(d.say)}</p>`);
+    }
+  });
+  record(v, allOk, wrongs);
+  const fb = $("fb");
+  fb.className = "feedback " + (allOk ? "good" : "bad");
+  fb.innerHTML = `<p class="verdict">${allOk ? "Goed!" : gaveUp ? "Geen probleem, onthoud deze:" : "Nog niet helemaal"}</p>
+    <p class="forms">${esc(fullForms(v))}</p><p class="grp">${esc(groupLine(v))}</p>`;
+  fb.hidden = false;
+  $("mainBtn").textContent = round.i + 1 < round.deck.length ? "Volgende" : "Bekijk resultaat";
+  $("skipBtn").hidden = true;
+  $("mainBtn").focus();
+}
+
+function record(v, ok, wrongs) {
+  if (ok) { round.ok++; mistakes.delete(v.inf); }
+  else { round.ko++; round.wrong.push(v); mistakes.add(v.inf); }
+  store.set(KEY_M, [...mistakes]);
+  updateStats();
+  logAttempt(v, ok, wrongs || []);
+}
+function next() {
+  round.i++;
+  if (round.i >= round.deck.length) renderEnd();
+  else renderQuestion(true);
+}
+
+function renderEnd() {
+  const n = round.deck.length;
+  $("pos").textContent = `${n} / ${n}`;
+  $("barFill").style.width = "100%";
+  const pct = n ? Math.round(round.ok / n * 100) : 0;
+  const list = round.wrong.map(v => `<li><b>${esc(v.inf)}</b><span>${esc([v.sgShow, v.plShow || "—", v.perfShow].join(" – "))}</span></li>`).join("");
+  $("stage").innerHTML = `<section class="card end">
+    <p class="eyebrow">Ronde klaar</p>
+    <p class="score">${round.ok} <span>/ ${n}</span></p>
+    <p>${round.wrong.length ? pct + "% goed." : "Alles goed. Knap gedaan!"}</p>
+    ${round.wrong.length ? `<h3>Nog oefenen</h3><ul class="wrong-list">${list}</ul><p class="note">Open <b>My tips</b> above to see which kind of mistake you make most.</p>` : ""}
+    <div class="actions">
+      ${round.wrong.length ? `<button type="button" class="btn primary" id="againBtn">Oefen deze ${round.wrong.length} opnieuw</button>` : ""}
+      <button type="button" class="btn${round.wrong.length ? "" : " primary"}" id="newBtn">Nieuwe ronde</button>
+    </div></section>`;
+  if ($("againBtn")) $("againBtn").addEventListener("click", () => startRound(round.wrong));
+  $("newBtn").addEventListener("click", () => startRound());
+  renderChips();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ---------- hints in plain words ---------- */
+const EXAMPLE = { ij: ["blijven", "schrijven"], ieui: ["kiezen", "sluiten"], in: ["drinken", "vinden"], igg: ["liggen", "zitten"],
+  edbl: ["trekken", "zwemmen"], ekm: ["breken", "nemen"], etvz: ["geven", "lezen"], elr: ["helpen", "sterven"],
+  agr: ["dragen", "vragen"], aoth: ["slapen", "vallen"], o: ["lopen", "roepen"], cht: ["denken", "kopen"], reg: ["wassen", "bakken"] };
+const LIKE = { wegen: "kiezen", bewegen: "kiezen", komen: "breken" };
+const byInf = inf => VERBS.find(x => x.inf === inf);
+const docForms = x => `${x.inf} – ${x.sgShow.replace(", ", " or ")}${x.plShow ? "/" + x.plShow : ""}${x.part ? " – " + x.part : ""}`;
+function exampleFor(v) { const ex = (EXAMPLE[v.g] || []).find(i => i !== v.inf); return ex ? byInf(ex) : null; }
+function particleOf(v) { return v.sgShow.includes(" ") ? v.sgShow.split(" ").slice(1).join(" ") : null; }
+function hintHTML(v) {
+  const G = GROUPS[v.g];
+  if (G.set === "row") {
+    let h = `<p><b>${esc(G.cond)}</b>: ${esc(G.change)}</p><p class="small">Like ${esc(docForms(exampleFor(v)))}</p>`;
+    if (v.g === "ij" || v.g === "ieui") h += `<p class="small">Plural: ee/oo has two letters in the singular, one before -en.</p>`;
+    if (v.g === "in" || v.g === "edbl") h += `<p class="small">Plural: a short o doubles a single consonant (won → wonnen).</p>`;
+    return h;
+  }
+  if (v.g === "diff") return `<p><b>Follows a different row</b></p><p class="small">Like ${esc(docForms(byInf(LIKE[v.inf])))}</p>`;
+  if (v.g === "cht") return `<p><b>The -cht family</b>: imperfectum and perfectum end in -cht.</p><p class="small">Like ${esc(docForms(exampleFor(v)))}</p>`;
+  if (v.g === "reg") return `<p><b>Regular imperfectum</b>: stem + -te/-de, plural + -n. Only the perfectum is irregular.</p><p class="small">Like ${esc(docForms(exampleFor(v)))}</p>`;
+  if (v.g === "irr") return `<p><b>Fully irregular</b>: learn this one by heart.</p><p class="small">It starts with: <b>${esc(v.sgAlts[0][0])}…</b></p>`;
+  const root = byInf(v.root), part = particleOf(v);
+  return `<p><b>Changes like its root</b>: ${esc(docForms(root))}</p>` +
+    `<p class="small">${part ? `Separable: the little word <b>${esc(part)}</b> goes at the end, apart.` : `Inseparable: the prefix stays attached and there is no ge-.`}</p>`;
+}
+function groupLine(v) {
+  const G = GROUPS[v.g];
+  if (G.set === "row") return `${G.cond}: ${G.change}`;
+  if (v.g === "diff") return `Follows a different row: like ${LIKE[v.inf]}`;
+  if (v.g === "cht") return "The -cht family: imperfectum and perfectum end in -cht";
+  if (v.g === "reg") return "Regular imperfectum, irregular perfectum";
+  if (v.g === "irr") return "Fully irregular: learn by heart";
+  return `Changes like ${v.root} (${byInf(v.root).sgShow})`;
+}
+
+/* ---------- what kind of mistake was it? ---------- */
+function presentForms(v) {
+  const EXC = { komen: ["kom", "komt"], mogen: ["mag"], kunnen: ["kan", "kun", "kunt"], zijn: ["ben", "is", "bent"], hebben: ["heb", "heeft", "hebt"], willen: ["wil", "wilt"], zullen: ["zal", "zult"] };
+  const stemOf = inf => {
+    if (EXC[inf]) return EXC[inf][0];
+    let w = inf.replace(" (van)", "");
+    if (/aan$/.test(w)) return w.slice(0, -2);
+    if (/(oen|ien)$/.test(w)) return w.slice(0, -1);
+    w = w.replace(/en$/, "");
+    if (/([b-df-hj-np-tv-z])\1$/.test(w)) w = w.slice(0, -1);
+    else if (/(^|[^aeiou])([aeou])[bcdfghklmnprstvwz]$/.test(w)) w = w.replace(/([aeou])([a-z])$/, "$1$1$2");
+    return w.replace(/z$/, "s").replace(/v$/, "f");
+  };
+  const forms = st => st.endsWith("t") ? [st] : [st, st + "t"];
+  const part = particleOf(v);
+  if (part && v.root) return forms(stemOf(v.root)).map(f => f + " " + part);
+  return EXC[v.inf] || forms(stemOf(v.inf));
+}
+const collapse = s => s.replace(/ee/g, "e").replace(/oo/g, "o").replace(/aa/g, "a");
+function diagnose(v, key, typed) {
+  if (!typed) return { type: "skip" };
+  const ans = key === "sg" ? v.sgAlts : key === "pl" ? [v.pl] : [v.part];
+  const a0 = ans[0];
+  if (key !== "perf" && v.part && (typed === v.part || "ge" + typed === v.part))
+    return { type: "perf", say: `That is the perfectum (${v.part}). The imperfectum is ${a0}.` };
+  if (key !== "perf" && presentForms(v).includes(typed))
+    return { type: "present", say: `"${typed}" is present tense (now). Past tense: ${a0}.` };
+  if (key === "pl") {
+    const sgw = v.sgAlts[v.sgAlts.length - 1].split(" ")[0];
+    if (["was", "had", "zei", "kon", "zou"].includes(v.sgAlts[0].split(" ")[0]))
+      return { type: "heart", say: `Learn this plural by heart: ${v.sgShow}/${v.plShow}.` };
+    if (typed.split(" ")[0] === sgw + "en") {
+      if (/(te|de)$/.test(sgw)) return { type: "plte", say: `-te/-de forms just add -n: ${a0}.` };
+      if (/o[^aeiou]$/.test(sgw) && a0.startsWith(sgw + sgw.slice(-1))) return { type: "ploo", say: `A short o doubles the next consonant: ${a0}.` };
+      if (/[fs]$/.test(sgw)) return { type: "plfs", say: `f and s become v and z before -en: ${a0}.` };
+    }
+  }
+  for (const a of ans) {
+    if (a !== typed && collapse(a) === typed) return { type: "double", say: `Almost! The long sound needs two letters here: ${a}.` };
+    if (a !== typed && collapse(typed) === a) return { type: "single", say: `Almost! In the plural one letter is enough: ${a}.` };
+  }
+  if (v.g === "reg" && key !== "perf") return { type: "regular", say: `This one is regular in the imperfectum: stem + -te/-de → ${a0}.` };
+  const part = particleOf(v);
+  if (key !== "perf" && part && !typed.split(" ").includes(part)) return { type: "particle", say: `Don't forget "${part}" at the end: ${a0}.` };
+  if (key !== "perf" && /(te|de|ten|den)$/.test(typed)) return { type: "weak", say: `No -te/-de here: the vowel changes instead. ${a0}.` };
+  return { type: "vowel", say: key === "perf" ? "" : `${groupLine(v)}.` };
+}
+const TYPE_INFO = {
+  double:   { title: "One letter instead of two", rule: "ee and oo are written with two letters in the singular, one before -en: bleef → bleven, koos → kozen, woog → wogen." },
+  single:   { title: "Two letters instead of one", rule: "Before -en, ee and oo are written with one letter: wogen, not woogen." },
+  present:  { title: "Present tense instead of past", rule: "You wrote the form for now (laat, blaas, vaar). Look at the vowel and the letters after it to find the row: liet, blies, voer." },
+  perf:     { title: "Perfectum instead of imperfectum", rule: "gekund, gekeken… are perfectum forms. The imperfectum is a single word: kon, keek." },
+  regular:  { title: "Regular imperfectum", rule: "bakken, wassen, scheiden: stem + -te/-de (bakte, waste, scheidde), plural + -n. Only their perfectum is irregular." },
+  particle: { title: "Forgot the little word", rule: "With separable verbs the little word goes at the end, apart: stond op, trok uit, nam mee." },
+  weak:     { title: "Added -te/-de to an irregular verb", rule: "These verbs don't get -te/-de. The vowel changes instead." },
+  vowel:    { title: "Wrong vowel", rule: "Find the row: look at the vowel and the letters right after it. e + k → brak, e + v → gaf, e + kk → trok, e + lp → hielp." },
+  heart:    { title: "Plurals to learn by heart", rule: "These five don't follow the plural rule: was/waren, had/hadden, zei/zeiden, kon/konden, zou/zouden." },
+  plte:     { title: "-te/-de plural", rule: "-te/-de forms just add -n: bakte → bakten, wilde → wilden." },
+  ploo:     { title: "Short o in the plural", rule: "A short o doubles the next consonant before -en: won → wonnen, trof → troffen." },
+  plfs:     { title: "f/s in the plural", rule: "f and s become v and z before -en: gaf → gaven, las → lazen." },
+};
+
+/* ---------- saved answers (only on this device) ---------- */
+const KEY_L = "imperfectum-trainer-log";
+const logCache = new Map(Object.entries(store.get(KEY_L, {})));
+function saveLocalLog() { const o = {}; logCache.forEach((b, k) => { o[k] = b; }); store.set(KEY_L, o); }
+const slug = s => s.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+function logAttempt(v, ok, wrongs) {
+  const id = slug(v.inf);
+  const prev = logCache.get(id) || { inf: v.inf, g: v.g, seen: 0, right: 0, wrong: 0, wrongAnswers: [] };
+  const body = JSON.parse(JSON.stringify(prev));
+  const now = new Date().toISOString();
+  body.seen += 1;
+  if (ok) body.right += 1; else body.wrong += 1;
+  body.open = !ok;
+  body.lastAt = now;
+  if (!ok) body.wrongAnswers = (body.wrongAnswers || []).concat(wrongs.map(w => ({ ...w, mode: settings.forms + "/" + settings.way, at: now.slice(0, 10) }))).slice(-8);
+  logCache.set(id, body);
+  saveLocalLog();
+}
+
+/* ---------- My tips panel ---------- */
+function renderTips() {
+  const docs = [...logCache.entries()].filter(([k]) => k !== "_from-phone").map(([, b]) => b);
+  const groups = {}, types = {};
+  docs.forEach(b => {
+    const v = byInf(b.inf); if (!v) return;
+    const g = groups[v.g] = groups[v.g] || { seen: 0, wrong: 0 };
+    g.seen += b.seen || 0; g.wrong += b.wrong || 0;
+    (b.wrongAnswers || []).forEach(w => {
+      if (!w.typed || w.f === "kaart") return;
+      const d = diagnose(v, w.f, w.typed);
+      const t = types[d.type] = types[d.type] || { n: 0, ex: [] };
+      t.n++;
+      const right = w.f === "sg" ? v.sgAlts[0] : w.f === "pl" ? v.pl : v.part;
+      const pair = `${w.typed} → ${right}`;
+      if (!t.ex.includes(pair) && t.ex.length < 4) t.ex.push(pair);
+    });
+  });
+  const ranked = Object.entries(types).filter(([k]) => TYPE_INFO[k]).sort((a, b) => b[1].n - a[1].n);
+  const weak = Object.entries(groups).filter(([, g]) => g.wrong > 0)
+    .sort((a, b) => b[1].wrong / b[1].seen - a[1].wrong / a[1].seen || b[1].wrong - a[1].wrong).slice(0, 3).map(([k]) => k);
+  const box = $("tipsBody");
+  if (!ranked.length) {
+    box.innerHTML = `<p class="note">No typed mistakes saved yet. Do a round in <b>Typen</b> mode, then open this again.</p>`;
+    return;
+  }
+  const items = ranked.map(([k, t]) => `<div class="tip-item"><h4>${esc(TYPE_INFO[k].title)} <span>${t.n}×</span></h4>
+    <p class="ex">${t.ex.map(esc).join(" · ")}</p><p class="rule">${esc(TYPE_INFO[k].rule)}</p></div>`).join("");
+  const label = g => GROUPS[g].chip;
+  box.innerHTML = `<p>Your most common mistakes, from all your rounds:</p>${items}
+    <div class="tip-item"><h4>Rows and sets to practise</h4><p class="rule">Where you made the most mistakes: ${weak.map(label).join(", ")}.</p></div>
+    <div class="tips-actions">
+      <button type="button" class="btn primary" id="tipGroupsBtn">Practise these</button>
+      ${mistakes.size ? `<button type="button" class="btn" id="tipMistBtn">Practise my ${mistakes.size} open mistakes</button>` : ""}
+    </div>`;
+  $("tipGroupsBtn").addEventListener("click", () => {
+    settings.groups = weak.slice(); settings.mist = false; saveSettings(); syncSettings();
+    $("tipsBox").open = false; startRound(); window.scrollTo({ top: 0 });
+  });
+  if ($("tipMistBtn")) $("tipMistBtn").addEventListener("click", () => {
+    $("tipsBox").open = false; startRound(VERBS.filter(v => mistakes.has(v.inf))); window.scrollTo({ top: 0 });
+  });
+}
+$("tipsBox").addEventListener("toggle", () => { if ($("tipsBox").open) renderTips(); });
+
+syncSettings();
+if (!buildPool().length) { settings.groups = GROUP_KEYS.slice(); syncSettings(); }
+startRound();
+
+/* ---------- Install & share panel ---------- */
+const shareUrl = location.href.split(/[?#]/)[0].replace(/index\.html$/, "");
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ua = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/.test(ua);
+function installText() {
+  if (isStandalone()) return "Done: you opened it from your home screen. It also works without internet.";
+  if (isIOS) return "In Safari, tap the Share button (the square with the arrow), then \u201cAdd to Home Screen\u201d. It then opens like an app and also works without internet.";
+  if (isAndroid) return "In Chrome, tap the \u22ee menu, then \u201cInstall app\u201d or \u201cAdd to Home screen\u201d. It then opens like an app and also works without internet.";
+  return "Open this page on your phone and add it to your home screen. On a computer, you can simply bookmark it.";
+}
+$("installHow").textContent = installText();
+$("linkText").textContent = shareUrl;
+function renderQR() {
+  if (typeof qrcode !== "function" || $("qr").firstChild) return;
+  try {
+    const q = qrcode(0, "M"); q.addData(shareUrl); q.make();
+    $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  } catch (e) { $("qr").hidden = true; }
+}
+$("shareBox").addEventListener("toggle", () => { if ($("shareBox").open) renderQR(); });
+
+const shareLabel = navigator.share ? "Share link" : "Copy link";
+$("shareBtn").textContent = shareLabel;
+$("shareBtn").addEventListener("click", async () => {
+  if (navigator.share) {
+    try { await navigator.share({ title: "Imperfectum-trainer", text: "Oefen het imperfectum:", url: shareUrl }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(shareUrl); $("shareBtn").textContent = "Link copied \u2713"; }
+  catch (e) { $("shareBtn").textContent = "Copy the link above"; }
+  setTimeout(() => { $("shareBtn").textContent = shareLabel; }, 2500);
+});
+
+let installEvent = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; $("installBtn").hidden = false; });
+window.addEventListener("appinstalled", () => { installEvent = null; $("installBtn").hidden = true; });
+$("installBtn").addEventListener("click", async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  try { await installEvent.userChoice; } catch (e) {}
+  installEvent = null; $("installBtn").hidden = true;
+});
+
+let resetArmed = null;
+$("resetBtn").addEventListener("click", () => {
+  const btn = $("resetBtn");
+  if (!resetArmed) {
+    btn.textContent = "Tap again to delete"; btn.classList.add("bad");
+    resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = "Delete my progress"; btn.classList.remove("bad"); }, 4000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed = null;
+  try { [KEY_M, KEY_L].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  mistakes = new Set(); logCache.clear(); settings.mist = false; saveSettings(); syncSettings();
+  if ($("tipsBox").open) renderTips();
+  btn.classList.remove("bad"); btn.textContent = "Deleted \u2713";
+  setTimeout(() => { btn.textContent = "Delete my progress"; }, 2500);
+});
+
+/* ---------- offline support ---------- */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+}
+</script>
+</body>
+</html>
