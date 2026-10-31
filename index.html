@@ -171,6 +171,7 @@ body { margin: 0; }
 .qr svg { display: block; width: 100%; height: auto; }
 .link { margin: 0; font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
 .tip-item .btn { justify-self: start; flex: none; }
+.app.typing { padding-bottom: 75vh; }
 </style>
 </head>
 <body>
@@ -390,36 +391,42 @@ function questionHead(v) {
     <div class="verb-wrap"><h2 class="verb">${esc(v.inf)}</h2><p class="en">${esc(v.en)}</p></div>`;
 }
 
-function renderQuestion(focus) {
-  updateStats();
-  const v = round.deck[round.i];
-  round.checked = false;
-  const stage = $("stage");
-  if (settings.way === "card") {
-    const rows = activeFields(v).map(f => {
-      const val = f.key === "sg" ? v.sgShow : f.key === "pl" ? (v.plShow || "—") : v.perfShow;
-      return `<div><dt>${f.lab}</dt><dd>${esc(val)}</dd></div>`;
-    }).join("");
-    stage.innerHTML = `<section class="card">${questionHead(v)}
-      <dl class="reveal" id="reveal" hidden>${rows}</dl>
-      <div class="actions" id="acts"><button type="button" class="btn primary" id="showBtn">Toon antwoord</button></div></section>`;
-    $("showBtn").addEventListener("click", () => {
-      $("reveal").hidden = false; $("hint").hidden = false;
-      $("acts").innerHTML = `<button type="button" class="btn bad" id="noBtn">Fout</button><button type="button" class="btn good" id="yesBtn">Goed</button>`;
-      $("yesBtn").addEventListener("click", () => { record(v, true, []); next(); });
-      $("noBtn").addEventListener("click", () => { record(v, false, [{ f: "kaart" }]); next(); });
-      $("yesBtn").focus();
-    });
-    if (focus) $("showBtn").focus();
-  } else {
-    const fields = activeFields(v).map(f => `
+/* Typing mode reuses one card from verb to verb, so the phone keyboard stays open,
+   and the page scrolls so the card sits right above the keyboard. */
+let typeCard = null;
+const keepFocus = el => ["pointerdown", "mousedown"].forEach(t => el.addEventListener(t, e => e.preventDefault()));
+function visibleArea() {
+  const vv = window.visualViewport;
+  return vv ? { top: vv.offsetTop, bottom: vv.offsetTop + vv.height } : { top: 0, bottom: window.innerHeight };
+}
+let revealJob = null;
+function reveal(getEl, align) {
+  const run = () => {
+    const el = getEl(); if (!el || !el.isConnected) return;
+    const r = el.getBoundingClientRect(), area = visibleArea();
+    const acts = $("acts"), fits = r.top >= area.top && (!acts || acts.getBoundingClientRect().bottom <= area.bottom);
+    const dy = align === "top" ? (fits ? 0 : r.top - area.top - 8) : Math.max(0, r.bottom - area.bottom + 8);
+    if (Math.abs(dy) > 2) window.scrollBy(0, dy);
+  };
+  revealJob = { run, until: Date.now() + 1200 };
+  run();
+  requestAnimationFrame(run);
+}
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => {
+  if (revealJob && Date.now() < revealJob.until) revealJob.run();
+});
+
+function buildTypeCard(defs) {
+  const fields = defs.map(f => `
       <div class="field">
         <label class="lab" for="f-${f.key}">${f.lab} <em>${f.sub}</em></label>
-        <input id="f-${f.key}" data-k="${f.key}" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next"
-          ${f.na ? 'class="na" value="—" readonly tabindex="-1"' : ""}>
+        <input id="f-${f.key}" data-k="${f.key}" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">
         <p class="fix" id="fix-${f.key}" hidden></p>
       </div>`).join("");
-    stage.innerHTML = `<section class="card">${questionHead(v)}
+  $("stage").innerHTML = `<section class="card" id="qcard">
+      <div class="q-head"><p class="eyebrow"><span id="qpos"></span> · Wat is het imperfectum?</p><button type="button" class="linkbtn" id="hintBtn">Hint</button></div>
+      <div class="hint" id="hint" hidden></div>
+      <div class="verb-wrap"><h2 class="verb" id="verb"></h2><p class="en" id="verbEn"></p></div>
       <form class="fields" id="qform" novalidate>${fields}
         <div class="feedback" id="fb" hidden></div>
         <div class="actions" id="acts">
@@ -427,18 +434,86 @@ function renderQuestion(focus) {
           <button type="button" class="btn" id="skipBtn">Weet ik niet</button>
         </div>
       </form></section>`;
-    const inputs = [...stage.querySelectorAll("input:not([readonly])")];
-    if (inputs.length) inputs[inputs.length - 1].setAttribute("enterkeyhint", "done");
-    inputs.forEach((inp, idx) => inp.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || round.checked) return;
-      const nextInp = inputs[idx + 1];
+  const inputs = [...$("qform").querySelectorAll("input")];
+  inputs.forEach(inp => {
+    inp.addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+      if (round.checked) { e.preventDefault(); next(); return; }
+      const open = inputs.filter(x => !x.readOnly);
+      const nextInp = open[open.indexOf(inp) + 1];
       if (nextInp && !nextInp.value.trim()) { e.preventDefault(); nextInp.focus(); }
-    }));
-    $("qform").addEventListener("submit", e => { e.preventDefault(); round.checked ? next() : check(v, false); });
-    $("skipBtn").addEventListener("click", () => check(v, true));
-    if (focus && inputs[0]) inputs[0].focus();
-  }
+    });
+    // After checking, the field keeps the focus (so the keyboard stays open) but the answer can't be changed.
+    inp.addEventListener("beforeinput", e => { if (round.checked && !/^insert(LineBreak|Paragraph)$/.test(e.inputType)) e.preventDefault(); });
+    inp.addEventListener("focus", () => document.querySelector(".app").classList.add("typing"));
+    inp.addEventListener("blur", () => setTimeout(() => {
+      if (!$("qform") || !$("qform").contains(document.activeElement)) document.querySelector(".app").classList.remove("typing");
+    }, 150));
+    inp.addEventListener("input", () => { if (round.checked) inp.value = inp.dataset.answer || ""; });
+  });
+  $("qform").addEventListener("submit", e => { e.preventDefault(); round.checked ? next() : check(round.deck[round.i], false); });
+  $("skipBtn").addEventListener("click", () => check(round.deck[round.i], true));
   $("hintBtn").addEventListener("click", () => { $("hint").hidden = !$("hint").hidden; });
+  ["mainBtn", "skipBtn", "hintBtn"].forEach(id => keepFocus($(id)));
+  return { sig: defs.map(f => f.key).join(","), inputs };
+}
+
+function fillTypeCard(v) {
+  const defs = activeFields(v);
+  const sig = defs.map(f => f.key).join(",");
+  if (!typeCard || typeCard.sig !== sig || !typeCard.inputs[0].isConnected) typeCard = buildTypeCard(defs);
+  $("qpos").textContent = `${round.i + 1}/${round.deck.length}`;
+  $("verb").textContent = v.inf;
+  $("verbEn").textContent = v.en;
+  $("hint").innerHTML = hintHTML(v); $("hint").hidden = true;
+  $("qform").querySelectorAll(".why").forEach(n => n.remove());
+  defs.forEach(f => {
+    const inp = $("f-" + f.key), fx = $("fix-" + f.key);
+    inp.className = f.na ? "na" : "";
+    inp.readOnly = !!f.na;
+    inp.tabIndex = f.na ? -1 : 0;
+    inp.value = f.na ? "—" : "";
+    inp.dataset.answer = "";
+    fx.hidden = true; fx.textContent = "";
+  });
+  const open = typeCard.inputs.filter(x => !x.readOnly);
+  open.forEach((x, i) => x.setAttribute("enterkeyhint", i === open.length - 1 ? "done" : "next"));
+  const fb = $("fb"); fb.hidden = true; fb.className = "feedback"; fb.innerHTML = "";
+  $("mainBtn").textContent = "Controleer";
+  $("skipBtn").hidden = false;
+}
+
+function renderQuestion(focus) {
+  updateStats();
+  const v = round.deck[round.i];
+  round.checked = false;
+  if (settings.way === "card") {
+    typeCard = null;
+    const rows = activeFields(v).map(f => {
+      const val = f.key === "sg" ? v.sgShow : f.key === "pl" ? (v.plShow || "—") : v.perfShow;
+      return `<div><dt>${f.lab}</dt><dd>${esc(val)}</dd></div>`;
+    }).join("");
+    $("stage").innerHTML = `<section class="card" id="qcard">${questionHead(v)}
+      <dl class="reveal" id="reveal" hidden>${rows}</dl>
+      <div class="actions" id="acts"><button type="button" class="btn primary" id="showBtn">Toon antwoord</button></div></section>`;
+    $("showBtn").addEventListener("click", () => {
+      $("reveal").hidden = false; $("hint").hidden = false;
+      $("acts").innerHTML = `<button type="button" class="btn bad" id="noBtn">Fout</button><button type="button" class="btn good" id="yesBtn">Goed</button>`;
+      $("yesBtn").addEventListener("click", () => { record(v, true, []); next(); });
+      $("noBtn").addEventListener("click", () => { record(v, false, [{ f: "kaart" }]); next(); });
+      $("yesBtn").focus({ preventScroll: true });
+      reveal(() => $("acts"), "bottom");
+    });
+    $("hintBtn").addEventListener("click", () => { $("hint").hidden = !$("hint").hidden; });
+    if (focus) { $("showBtn").focus({ preventScroll: true }); reveal(() => $("qcard"), "top"); }
+    return;
+  }
+  fillTypeCard(v);
+  if (focus) {
+    const first = typeCard.inputs.find(x => !x.readOnly);
+    if (first) first.focus({ preventScroll: true });
+    reveal(() => $("qcard"), "top");
+  }
 }
 
 function judge(v, key, raw) {
@@ -471,7 +546,7 @@ function check(v, gaveUp) {
     const inp = $("f-" + f.key);
     const r = judge(v, f.key, gaveUp ? "" : inp.value);
     if (r.na) return;
-    inp.readOnly = true;
+    inp.dataset.answer = inp.value;
     inp.classList.add(r.ok ? "good" : "bad");
     if (!r.ok) {
       allOk = false;
@@ -487,12 +562,16 @@ function check(v, gaveUp) {
   record(v, allOk, wrongs);
   const fb = $("fb");
   fb.className = "feedback " + (allOk ? "good" : "bad");
+  // don't repeat the rule if the explanation under the field already says it (saves space above the keyboard)
+  const grp = groupLine(v), saidAlready = [...$("qform").querySelectorAll(".why")].some(n => n.textContent.startsWith(grp));
   fb.innerHTML = `<p class="verdict">${allOk ? "Goed!" : gaveUp ? "Geen probleem, onthoud deze:" : "Nog niet helemaal"}</p>
-    <p class="forms">${esc(fullForms(v))}</p><p class="grp">${esc(groupLine(v))}</p>`;
+    <p class="forms">${esc(fullForms(v))}</p>${saidAlready ? "" : `<p class="grp">${esc(grp)}</p>`}`;
   fb.hidden = false;
   $("mainBtn").textContent = round.i + 1 < round.deck.length ? "Volgende" : "Bekijk resultaat";
   $("skipBtn").hidden = true;
-  $("mainBtn").focus();
+  // keep the keyboard open when typing on a phone; otherwise put the focus on "Volgende"
+  if (!$("qform").contains(document.activeElement)) $("mainBtn").focus({ preventScroll: true });
+  reveal(() => $("acts"), "bottom");
 }
 
 function record(v, ok, wrongs) {

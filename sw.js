@@ -1,6 +1,6 @@
 /* Offline support: keeps a copy of the trainer on the phone.
    Change VERSION whenever the files change, so phones pick up the new version. */
-const VERSION = "imperfectum-v1";
+const VERSION = "imperfectum-v2";
 const FILES = [
   "./", "index.html", "manifest.webmanifest", "qr.js",
   "atkinson-400.woff2", "atkinson-400-italic.woff2", "atkinson-700.woff2",
@@ -20,10 +20,27 @@ self.addEventListener("activate", event => {
   );
 });
 
-// Show the saved copy right away (fast, works offline) and quietly fetch a fresh one for next time.
 self.addEventListener("fetch", event => {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
+
+  // The page itself: get the newest version when online (wait at most 3 seconds), else use the saved copy.
+  if (req.mode === "navigate") {
+    const fromCache = () => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match("index.html"));
+    const net = fetch(req).then(res => {
+      if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then(cache => cache.put(req, copy)); }
+      return res;
+    });
+    event.waitUntil(net.catch(() => {}));
+    event.respondWith(
+      Promise.race([net, new Promise(resolve => setTimeout(resolve, 3000, null))])
+        .then(res => (res && res.ok ? res : fromCache()))
+        .catch(fromCache)
+    );
+    return;
+  }
+
+  // Fonts, icons, scripts: show the saved copy right away and quietly fetch a fresh one for next time.
   const fresh = fetch(req)
     .then(res => {
       if (!res || !res.ok) return res;
