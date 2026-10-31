@@ -391,30 +391,40 @@ function questionHead(v) {
     <div class="verb-wrap"><h2 class="verb">${esc(v.inf)}</h2><p class="en">${esc(v.en)}</p></div>`;
 }
 
-/* Typing mode reuses one card from verb to verb, so the phone keyboard stays open,
-   and the page scrolls so the card sits right above the keyboard. */
+/* Typing mode reuses one card from verb to verb, so the phone keyboard stays open.
+   On a phone the card is always pinned at the same place: its top at the top of the screen,
+   both while you type and when the result shows, so nothing jumps. */
 let typeCard = null;
 const keepFocus = el => ["pointerdown", "mousedown"].forEach(t => el.addEventListener(t, e => e.preventDefault()));
 function visibleArea() {
   const vv = window.visualViewport;
   return vv ? { top: vv.offsetTop, bottom: vv.offsetTop + vv.height } : { top: 0, bottom: window.innerHeight };
 }
-let revealJob = null;
-function reveal(getEl, align) {
-  const run = () => {
-    const el = getEl(); if (!el || !el.isConnected) return;
-    const r = el.getBoundingClientRect(), area = visibleArea();
-    const acts = $("acts"), fits = r.top >= area.top && (!acts || acts.getBoundingClientRect().bottom <= area.bottom);
-    const dy = align === "top" ? (fits ? 0 : r.top - area.top - 8) : Math.max(0, r.bottom - area.bottom + 8);
-    if (Math.abs(dy) > 2) window.scrollBy(0, dy);
-  };
-  revealJob = { run, until: Date.now() + 1200 };
-  run();
-  requestAnimationFrame(run);
+function onPhone() {
+  const vv = window.visualViewport;
+  return window.matchMedia("(pointer: coarse)").matches || (vv && vv.height < window.innerHeight - 120);
 }
-if (window.visualViewport) window.visualViewport.addEventListener("resize", () => {
-  if (revealJob && Date.now() < revealJob.until) revealJob.run();
-});
+function pinCard() {
+  const card = $("qcard"); if (!card || !card.isConnected) return;
+  const area = visibleArea();
+  let dy = card.getBoundingClientRect().top - area.top - 8;
+  // with several fields, also make sure the field you are typing in is above the keyboard
+  const f = document.activeElement;
+  if (f && f.tagName === "INPUT" && card.contains(f)) {
+    const fieldBottom = f.getBoundingClientRect().bottom - dy;
+    if (fieldBottom > area.bottom - 8) dy += fieldBottom - (area.bottom - 8);
+  }
+  if (Math.abs(dy) > 2) window.scrollBy(0, dy);
+}
+let pinUntil = 0;
+function keepPinned() {
+  if (!onPhone()) return;
+  pinUntil = Date.now() + 1200;  // the keyboard may still be opening: pin again while it moves
+  pinCard();
+  requestAnimationFrame(pinCard);
+  [80, 250, 500, 900].forEach(t => setTimeout(() => { if (Date.now() < pinUntil) pinCard(); }, t));
+}
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => { if (Date.now() < pinUntil) pinCard(); });
 
 function buildTypeCard(defs) {
   const fields = defs.map(f => `
@@ -445,7 +455,7 @@ function buildTypeCard(defs) {
     });
     // After checking, the field keeps the focus (so the keyboard stays open) but the answer can't be changed.
     inp.addEventListener("beforeinput", e => { if (round.checked && !/^insert(LineBreak|Paragraph)$/.test(e.inputType)) e.preventDefault(); });
-    inp.addEventListener("focus", () => document.querySelector(".app").classList.add("typing"));
+    inp.addEventListener("focus", () => { document.querySelector(".app").classList.add("typing"); keepPinned(); });
     inp.addEventListener("blur", () => setTimeout(() => {
       if (!$("qform") || !$("qform").contains(document.activeElement)) document.querySelector(".app").classList.remove("typing");
     }, 150));
@@ -502,17 +512,16 @@ function renderQuestion(focus) {
       $("yesBtn").addEventListener("click", () => { record(v, true, []); next(); });
       $("noBtn").addEventListener("click", () => { record(v, false, [{ f: "kaart" }]); next(); });
       $("yesBtn").focus({ preventScroll: true });
-      reveal(() => $("acts"), "bottom");
     });
     $("hintBtn").addEventListener("click", () => { $("hint").hidden = !$("hint").hidden; });
-    if (focus) { $("showBtn").focus({ preventScroll: true }); reveal(() => $("qcard"), "top"); }
+    if (focus) $("showBtn").focus({ preventScroll: true });
     return;
   }
   fillTypeCard(v);
   if (focus) {
     const first = typeCard.inputs.find(x => !x.readOnly);
     if (first) first.focus({ preventScroll: true });
-    reveal(() => $("qcard"), "top");
+    keepPinned();
   }
 }
 
@@ -571,7 +580,7 @@ function check(v, gaveUp) {
   $("skipBtn").hidden = true;
   // keep the keyboard open when typing on a phone; otherwise put the focus on "Volgende"
   if (!$("qform").contains(document.activeElement)) $("mainBtn").focus({ preventScroll: true });
-  reveal(() => $("acts"), "bottom");
+  keepPinned();
 }
 
 function record(v, ok, wrongs) {
