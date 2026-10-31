@@ -171,7 +171,9 @@ body { margin: 0; }
 .qr svg { display: block; width: 100%; height: auto; }
 .link { margin: 0; font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
 .tip-item .btn { justify-self: start; flex: none; }
-.app.typing { padding-bottom: 75vh; }
+/* Focus mode on phones: while the keyboard is open, only the progress bar and the card are shown,
+   so the card is at the top of the page and the phone never has to scroll. */
+@media (pointer: coarse) { .app.typing .top, .app.typing details.settings { display: none; } }
 </style>
 </head>
 <body>
@@ -392,39 +394,17 @@ function questionHead(v) {
 }
 
 /* Typing mode reuses one card from verb to verb, so the phone keyboard stays open.
-   On a phone the card is always pinned at the same place: its top at the top of the screen,
-   both while you type and when the result shows, so nothing jumps. */
+   On a phone, the panels above the card hide while you type (focus mode), so the card sits
+   at the top of the page and nothing needs to scroll. */
 let typeCard = null;
 const keepFocus = el => ["pointerdown", "mousedown"].forEach(t => el.addEventListener(t, e => e.preventDefault()));
-function visibleArea() {
-  const vv = window.visualViewport;
-  return vv ? { top: vv.offsetTop, bottom: vv.offsetTop + vv.height } : { top: 0, bottom: window.innerHeight };
+function onPhone() { return window.matchMedia("(pointer: coarse)").matches; }
+function setTyping(on) {
+  const app = document.querySelector(".app");
+  if (on === app.classList.contains("typing")) return;
+  app.classList.toggle("typing", on);
+  if (on && onPhone()) window.scrollTo(0, 0);
 }
-function onPhone() {
-  const vv = window.visualViewport;
-  return window.matchMedia("(pointer: coarse)").matches || (vv && vv.height < window.innerHeight - 120);
-}
-function pinCard() {
-  const card = $("qcard"); if (!card || !card.isConnected) return;
-  const area = visibleArea();
-  let dy = card.getBoundingClientRect().top - area.top - 8;
-  // with several fields, also make sure the field you are typing in is above the keyboard
-  const f = document.activeElement;
-  if (f && f.tagName === "INPUT" && card.contains(f)) {
-    const fieldBottom = f.getBoundingClientRect().bottom - dy;
-    if (fieldBottom > area.bottom - 8) dy += fieldBottom - (area.bottom - 8);
-  }
-  if (Math.abs(dy) > 2) window.scrollBy(0, dy);
-}
-let pinUntil = 0;
-function keepPinned() {
-  if (!onPhone()) return;
-  pinUntil = Date.now() + 1200;  // the keyboard may still be opening: pin again while it moves
-  pinCard();
-  requestAnimationFrame(pinCard);
-  [80, 250, 500, 900].forEach(t => setTimeout(() => { if (Date.now() < pinUntil) pinCard(); }, t));
-}
-if (window.visualViewport) window.visualViewport.addEventListener("resize", () => { if (Date.now() < pinUntil) pinCard(); });
 
 function buildTypeCard(defs) {
   const fields = defs.map(f => `
@@ -455,9 +435,9 @@ function buildTypeCard(defs) {
     });
     // After checking, the field keeps the focus (so the keyboard stays open) but the answer can't be changed.
     inp.addEventListener("beforeinput", e => { if (round.checked && !/^insert(LineBreak|Paragraph)$/.test(e.inputType)) e.preventDefault(); });
-    inp.addEventListener("focus", () => { document.querySelector(".app").classList.add("typing"); keepPinned(); });
+    inp.addEventListener("focus", () => setTyping(true));
     inp.addEventListener("blur", () => setTimeout(() => {
-      if (!$("qform") || !$("qform").contains(document.activeElement)) document.querySelector(".app").classList.remove("typing");
+      if (!$("qform") || !$("qform").contains(document.activeElement)) setTyping(false);
     }, 150));
     inp.addEventListener("input", () => { if (round.checked) inp.value = inp.dataset.answer || ""; });
   });
@@ -498,7 +478,7 @@ function renderQuestion(focus) {
   const v = round.deck[round.i];
   round.checked = false;
   if (settings.way === "card") {
-    typeCard = null;
+    typeCard = null; setTyping(false);
     const rows = activeFields(v).map(f => {
       const val = f.key === "sg" ? v.sgShow : f.key === "pl" ? (v.plShow || "—") : v.perfShow;
       return `<div><dt>${f.lab}</dt><dd>${esc(val)}</dd></div>`;
@@ -521,7 +501,6 @@ function renderQuestion(focus) {
   if (focus) {
     const first = typeCard.inputs.find(x => !x.readOnly);
     if (first) first.focus({ preventScroll: true });
-    keepPinned();
   }
 }
 
@@ -580,7 +559,6 @@ function check(v, gaveUp) {
   $("skipBtn").hidden = true;
   // keep the keyboard open when typing on a phone; otherwise put the focus on "Volgende"
   if (!$("qform").contains(document.activeElement)) $("mainBtn").focus({ preventScroll: true });
-  keepPinned();
 }
 
 function record(v, ok, wrongs) {
@@ -597,6 +575,7 @@ function next() {
 }
 
 function renderEnd() {
+  setTyping(false);
   const n = round.deck.length;
   $("pos").textContent = `${n} / ${n}`;
   $("barFill").style.width = "100%";
